@@ -1,4 +1,6 @@
-// Tekken 8 Load Remover
+// Tekken 8 Autosplitter and Load Remover
+// Supports Load Remover, Main Story & Character Episode Splits
+// Splits for campaigns can be obtained from 
 // Script & Pointers by TheDementedSalad
 
 state("Polaris-Win64-Shipping", "SteamRelease")
