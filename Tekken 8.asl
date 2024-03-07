@@ -12,11 +12,13 @@ state("Polaris-Win64-Shipping", "SteamRelease")
 	
 	byte CurrOpp:		0x8E732C8, 0x10, 0x10, 0x74; 	//0,1,2,3,4 character story mode
 	byte Wins:			0x8E732C8, 0x10, 0x20, 0x40; 	//0,1,2 depending on how many rounds you win
-	byte Cutscene:		0x94B15C0, 0x3E;				//1 Cutscene 0 else
-	byte Loading:		0x933D140, 0x528, 0xD0;			//1 loading 0 else
+	bool Cutscene:		0x94B15C0, 0x3E;				//1 Cutscene 0 else
+	bool Loading:		0x933D140, 0x528, 0xD0;			//1 loading 0 else
 	ushort HP:			0x94B6328, 0x42;
 	byte LeftC:			0x94B5110, 0x0, 0x0, 0x10;
 	byte RightC:		0x94B5110, 0x0, 0x8, 0x10;
+	byte LeftC2:		0x94B45C0, 0x7C8;
+	byte RightC2:		0x94B45C0, 0x7CC;	
 }
 
 init
@@ -38,15 +40,14 @@ startup
 	
 	settings.Add("Chap", false, "Chapter Splits (Splits End of Chapter)");
 	settings.Add("CharEp", false, "Character Episodes (Splits On Every Enemy Defeat)");
-	settings.CurrentDefaultParent = "CharEp";
 	settings.Add("CharEp2", false, "Character Episodes 2 (Splits On Every 5th Enemy Defeat");
-	settings.CurrentDefaultParent = null;
 }
 
 update
 {
 	//print(modules.First().ModuleMemorySize.ToString());
 	//print(current.Map.ToString());
+	//print(current.Loading.ToString());
 	
 	//Reset variables when the timer is reset.
 	if(timer.CurrentPhase == TimerPhase.NotRunning)
@@ -57,7 +58,13 @@ update
 
 start
 {
-	return (current.HP == 300 || current.HP == 180) && current.Cutscene == 0;
+	if(settings["Chap"]){
+		return current.HP == 300 && current.Cutscene == 0;
+	}
+	
+	if(settings["CharEp"] || settings["CharEp2"]){
+		return current.HP == 180 && current.RightC2 != 255 && !current.Loading && old.Loading;
+	}
 }
 
 split
@@ -67,36 +74,31 @@ split
             vars.completedSplits.Add(current.Map);
             return true;
         }
-		
-		if(current.Map == "ST05" && current.LeftC == 6 && current.RightC == 16 && !vars.completedSplits.Contains("Leo")){
+		else if(current.Map == "ST05" && current.LeftC == 6 && current.RightC == 16 && !vars.completedSplits.Contains("Leo")){
 			vars.completedSplits.Add("Leo");
             return true;
         }
-		
-		if(current.Map == "ST04" && current.LeftC == 8 && current.RightC == 32 && !vars.completedSplits.Contains("Azazel")){
+		else if(current.Map == "ST04" && current.LeftC == 8 && current.RightC == 32 && !vars.completedSplits.Contains("Azazel")){
 			vars.completedSplits.Add("Azazel");
             return true;
         }
-		
-		if(current.Map == "ST04" && current.LeftC == 28 && current.RightC == 118 && !vars.completedSplits.Contains("TrueD")){
+		else if(current.Map == "ST04" && current.LeftC == 28 && current.RightC == 118 && !vars.completedSplits.Contains("TrueD")){
 			vars.completedSplits.Add("TrueD");
             return true;
         }
-		
-		if(current.Map == "ST03" && current.LeftC == 5 && current.RightC == 119 && !vars.completedSplits.Contains("Jack7")){
+		else if(current.Map == "ST03" && current.LeftC == 5 && current.RightC == 119 && !vars.completedSplits.Contains("Jack7")){
 			vars.completedSplits.Add("Jack7");
             return true;
         }
-		
-		if(current.Map == "ST03" && current.LeftC == 17 && current.RightC == 118 && !vars.completedSplits.Contains("TrueD2")){
+		else if(current.Map == "ST03" && current.LeftC == 17 && current.RightC == 118 && !vars.completedSplits.Contains("TrueD2")){
 			vars.completedSplits.Add("TrueD2");
             return true;
         }
-		
-		if(current.Map == "ST07" && current.Wins == 1 && old.Wins == 0 && !vars.completedSplits.Contains("End")){
+		else if(current.Map == "ST07" && current.Wins == 1 && old.Wins == 0 && !vars.completedSplits.Contains("End")){
 			vars.completedSplits.Add("End");
             return true;
         }
+		else return false;
 	}
 	
 	if(settings["CharEp"]){
@@ -110,7 +112,7 @@ split
 	
 isLoading
 {	
-	return current.Loading == 1 || current.Cutscene == 1;
+	return current.Loading || current.Cutscene;
 }
 
 reset
