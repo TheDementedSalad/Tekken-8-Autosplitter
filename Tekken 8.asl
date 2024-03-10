@@ -58,13 +58,7 @@ update
 
 start
 {
-	if(settings["Chap"]){
-		return current.HP == 300 && current.Cutscene == 0;
-	}
-	
-	if(settings["CharEp"] || settings["CharEp2"]){
-		return current.HP == 180 && current.RightC2 != 255 && !current.Loading && old.Loading;
-	}
+	return current.HP == 300 && current.Cutscene == 0 && current.HP == 180 && current.RightC2 != 255 && !current.Loading && old.Loading;
 }
 
 split
