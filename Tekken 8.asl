@@ -3,48 +3,52 @@
 // Splits for campaigns can be obtained from 
 // Script & Pointers by TheDementedSalad
 
-state("Polaris-Win64-Shipping", "SteamRelease")
-{
-	string8 Map:		0x94B5FB0, 0x58, 0x8, 0x8, 0x128, 0x48, 0x20;
-	string300 MapLong:	0x94B5FB0, 0x58, 0x8, 0x8, 0x128, 0x48, 0x20;
-	byte Paused:		0x948DE38, 0xB13;				//UEngine 1 cutscene & pause menu 0 in game
-	byte PauseMenu:		0x94F08C8, 0x60;				//1 paused, 2 paused in cutscene, 0 unpaused
-	
-	byte CurrOpp:		0x8E732C8, 0x10, 0x10, 0x74; 	//0,1,2,3,4 character story mode
-	byte Wins:			0x8E732C8, 0x10, 0x20, 0x40; 	//0,1,2 depending on how many rounds you win
-	bool Cutscene:		0x94B15C0, 0x3E;				//1 Cutscene 0 else
-	bool Loading:		0x933D140, 0x528, 0xD0;			//1 loading 0 else
-	ushort HP:			0x94B6328, 0x42;
-	byte LeftC:			0x94B5110, 0x0, 0x0, 0x10;
-	byte RightC:		0x94B5110, 0x0, 0x8, 0x10;
-	byte LeftC2:		0x94B45C0, 0x7C8;
-	byte RightC2:		0x94B45C0, 0x7CC;	
-}
+state("Polaris-Win64-Shipping"){}
 
 init
 {
-	switch (modules.First().ModuleMemorySize)
+	vars.completedSplits = new List<string>();
+	
+	IntPtr gWorld = vars.Helper.ScanRel(3, "48 8B 05 ???????? 48 3B C? 48 0F 44 C? 48 89 05 ???????? E8");
+	IntPtr CharacterInfo = vars.Helper.ScanRel(3, "48 8b 05 ?? ?? ?? ?? 48 03 71");
+	IntPtr SelectedChar = vars.Helper.ScanRel(3, "48 8b 05 ?? ?? ?? ?? 49 ba");
+	IntPtr Cutscenes = vars.Helper.ScanRel(3, "48 8b 0d ?? ?? ?? ?? 41 0f 28 d4");
+	IntPtr CurrLevel = vars.Helper.ScanRel(3, "48 8b 05 ?? ?? ?? ?? 48 89 45 ?? 48 8b 00");
+	
+	if (gWorld == IntPtr.Zero || CurrLevel == IntPtr.Zero || Cutscenes == IntPtr.Zero || CharacterInfo == IntPtr.Zero || SelectedChar == IntPtr.Zero)
 	{
-		case (167849984):
-			version = "SteamRelease";
-			break;
+		const string Msg = "Not all required addresses could be found by scanning.";
+		throw new Exception(Msg);
 	}
 	
-	vars.completedSplits = new List<string>();
+	vars.Helper["Cutscene"] = vars.Helper.Make<bool>(Cutscenes, 0x3E);
+	vars.Helper["LeftC"] = vars.Helper.Make<byte>(SelectedChar, 0x7C8);
+	vars.Helper["RightC"] = vars.Helper.Make<byte>(SelectedChar, 0x7CC);
+	vars.Helper["CurrOpp"] = vars.Helper.Make<byte>(CharacterInfo, 0x10, 0x10, 0x74);
+	vars.Helper["Wins"] = vars.Helper.Make<byte>(CharacterInfo, 0x10, 0x20, 0x40);
+	vars.Helper["HP"] = vars.Helper.Make<ushort>(CharacterInfo, 0x10, 0x18, 0x30, 0x8, 0x18, 0x10, 0x8, 0x42);
+	vars.Helper["Loading"] = vars.Helper.Make<bool>(gWorld, 0x1E0, 0x50, 0x20, 0x180, 0x78, 0x540, 0x90);
+	vars.Helper["Level"] = vars.Helper.MakeString(CurrLevel, 0x58, 0x8, 0x8, 0x128, 0x48, 0x20);
 }
 
 startup
 {	
+	Assembly.Load(File.ReadAllBytes("Components/asl-help")).CreateInstance("Basic");
+	
 	vars.Stages = new List<String>()
 	{"ST05", "ST01", "ST04", "ST03", "ST08", "ST09", "ST10", "ST11", "ST07"};
 	
 	settings.Add("Chap", false, "Chapter Splits (Splits End of Chapter)");
 	settings.Add("CharEp", false, "Character Episodes (Splits On Every Enemy Defeat)");
 	settings.Add("CharEp2", false, "Character Episodes 2 (Splits On Every 5th Enemy Defeat");
+	
 }
 
 update
 {
+	vars.Helper.Update();
+	vars.Helper.MapPointers();
+	
 	//print(modules.First().ModuleMemorySize.ToString());
 	//print(current.Map.ToString());
 	//print(current.Loading.ToString());
@@ -54,11 +58,15 @@ update
 	{
 		vars.completedSplits.Clear();
 	}
+	
+	if(!string.IsNullOrEmpty(current.Level) && current.Level != "oot"){
+		current.Map = current.Level.Substring(0, 4);
+	}
 }
 
 start
 {
-	return current.HP == 300 && current.Cutscene == 0 && current.HP == 180 && current.RightC2 != 255 && !current.Loading && old.Loading;
+	return current.HP == 300 && !current.Cutscene && current.HP == 180 && current.RightC != 255 && !current.Loading && old.Loading;
 }
 
 split
